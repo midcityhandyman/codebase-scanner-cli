@@ -1,0 +1,175 @@
+$ codebase-scanner tests/fixtures/sample_repo
+
+# Codebase scan: sample_repo
+
+- Files: 15 in 5 directories (max depth 1)
+- Lines: 231, bytes: 8562, binary files: 0
+- TODO markers: 6 (68.2 per 1000 lines of code)
+- Likely dead files: 2
+- Risk findings: 3 high, 2 medium, 2 low
+
+## Structure
+
+| Top level entry | Files | Lines | Bytes |
+| --- | --- | --- | --- |
+| app/ | 6 | 54 | 1520 |
+| (root files) | 3 | 22 | 535 |
+| web/ | 3 | 25 | 721 |
+| data/ | 1 | 121 | 5563 |
+| scripts/ | 1 | 4 | 107 |
+| tests/ | 1 | 5 | 116 |
+
+## Language mix
+
+| Language | Files | Lines | Share of lines |
+| --- | --- | --- | --- |
+| CSV | 1 | 121 | 52.4% |
+| Python | 7 | 59 | 25.5% |
+| JavaScript | 3 | 25 | 10.8% |
+| JSON | 1 | 13 | 5.6% |
+| Markdown | 1 | 5 | 2.2% |
+| Shell | 1 | 4 | 1.7% |
+| Text | 1 | 4 | 1.7% |
+
+## Largest files
+
+| Path | Bytes | Lines | Language |
+| --- | --- | --- | --- |
+| data/price_list.csv | 5563 | 121 | CSV |
+| app/billing.py | 381 | 11 | Python |
+| app/legacy_report.py | 357 | 12 | Python |
+| web/api.js | 354 | 12 | JavaScript |
+| app/main.py | 317 | 14 | Python |
+| app/config.py | 236 | 8 | Python |
+| README.md | 233 | 5 | Markdown |
+| app/utils.py | 229 | 9 | Python |
+| package.json | 224 | 13 | JSON |
+| web/old_widget.js | 191 | 5 | JavaScript |
+
+## Dependency manifests
+
+### package.json (npm)
+
+3 dependencies, 2 not pinned to an exact version.
+
+| Name | Spec | Scope | Pinned |
+| --- | --- | --- | --- |
+| express | ^4.19.0 | runtime | no |
+| left-pad | 1.3.0 | runtime | yes |
+| jest | ~29.7.0 | dev | no |
+
+### requirements.txt (pip)
+
+3 dependencies, 2 not pinned to an exact version.
+
+| Name | Spec | Scope | Pinned |
+| --- | --- | --- | --- |
+| flask | ==3.0.0 | runtime | yes |
+| requests | >=2.31 | runtime | no |
+| pyyaml | (any) | runtime | no |
+
+## TODO density
+
+6 markers across 88 lines of code. By tag: FIXME: 1, HACK: 1, TODO: 4.
+
+| Path | Markers | Lines | Per 1000 lines |
+| --- | --- | --- | --- |
+| app/billing.py | 2 | 11 | 181.8 |
+| app/legacy_report.py | 1 | 12 | 83.3 |
+| app/main.py | 1 | 14 | 71.4 |
+| scripts/deploy.sh | 1 | 4 | 250.0 |
+| web/api.js | 1 | 12 | 83.3 |
+
+## Likely dead files
+
+| Path | Language | Lines | Reason |
+| --- | --- | --- | --- |
+| app/legacy_report.py | Python | 12 | never imported by another file in the repository |
+| web/old_widget.js | JavaScript | 5 | never imported by another file in the repository |
+
+## Risky patterns
+
+| Severity | Rule | Location | Excerpt |
+| --- | --- | --- | --- |
+| high | hardcoded-credential | app/config.py:6 | `DB_PASSWORD = "fixt********"` |
+| high | aws-access-key-id | app/config.py:7 | `AWS_ACCESS_KEY_ID = "AKIA********"` |
+| high | hardcoded-credential | web/api.js:3 | `const apiToken = "fixt********";` |
+| medium | python-eval-exec | app/legacy_report.py:8 | `return eval(formula)` |
+| medium | subprocess-shell-true | app/legacy_report.py:12 | `subprocess.run(f"tar czf {name}.tgz reports/", shell=True, check=False)` |
+| low | debug-enabled | app/config.py:4 | `DEBUG = True` |
+| low | js-inner-html | web/old_widget.js:4 | `banner.innerHTML = message;` |
+
+$ codebase-scanner tests/fixtures/sample_repo --format json  (risks section only)
+
+{
+  "risks": {
+    "total": 7,
+    "by_severity": {
+      "high": 3,
+      "medium": 2,
+      "low": 2
+    },
+    "findings": [
+      {
+        "rule": "hardcoded-credential",
+        "severity": "high",
+        "description": "Credential assigned from a string literal",
+        "path": "app/config.py",
+        "line": 6,
+        "excerpt": "DB_PASSWORD = \"fixt********\""
+      },
+      {
+        "rule": "aws-access-key-id",
+        "severity": "high",
+        "description": "AWS access key id in source",
+        "path": "app/config.py",
+        "line": 7,
+        "excerpt": "AWS_ACCESS_KEY_ID = \"AKIA********\""
+      },
+      {
+        "rule": "hardcoded-credential",
+        "severity": "high",
+        "description": "Credential assigned from a string literal",
+        "path": "web/api.js",
+        "line": 3,
+        "excerpt": "const apiToken = \"fixt********\";"
+      },
+      {
+        "rule": "python-eval-exec",
+        "severity": "medium",
+        "description": "eval or exec on dynamic input",
+        "path": "app/legacy_report.py",
+        "line": 8,
+        "excerpt": "return eval(formula)"
+      },
+      {
+        "rule": "subprocess-shell-true",
+        "severity": "medium",
+        "description": "Subprocess call with shell=True",
+        "path": "app/legacy_report.py",
+        "line": 12,
+        "excerpt": "subprocess.run(f\"tar czf {name}.tgz reports/\", shell=True, check=False)"
+      },
+      {
+        "rule": "debug-enabled",
+        "severity": "low",
+        "description": "Debug mode switched on in source",
+        "path": "app/config.py",
+        "line": 4,
+        "excerpt": "DEBUG = True"
+      },
+      {
+        "rule": "js-inner-html",
+        "severity": "low",
+        "description": "innerHTML assignment (possible XSS)",
+        "path": "web/old_widget.js",
+        "line": 4,
+        "excerpt": "banner.innerHTML = message;"
+      }
+    ]
+  }
+}
+
+$ codebase-scanner tests/fixtures/sample_repo --quiet --fail-on high; echo $?
+
+2

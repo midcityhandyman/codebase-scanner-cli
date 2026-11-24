@@ -1,0 +1,4 @@
+# runtime dependencies for the fixture app
+flask==3.0.0
+requests>=2.31
+pyyaml

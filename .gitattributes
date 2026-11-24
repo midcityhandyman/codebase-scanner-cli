@@ -1,0 +1,3 @@
+# Keep line endings identical on every platform so byte counts in the
+# fixture scan and the captured demo output stay stable.
+* text=auto eol=lf
