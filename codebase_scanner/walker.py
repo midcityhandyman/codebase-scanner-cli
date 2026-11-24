@@ -58,7 +58,9 @@ def walk(root: Path, max_file_bytes: int = DEFAULT_MAX_FILE_BYTES) -> list[FileI
                 if b"\0" in raw[:8192]:
                     info.binary = True
                 else:
-                    info.text = raw.decode("utf-8", errors="replace")
+                    # utf-8-sig drops a leading byte order mark, which would
+                    # otherwise make ast.parse reject the file.
+                    info.text = raw.decode("utf-8-sig", errors="replace")
                     info.lines = count_lines(info.text)
             files.append(info)
     files.sort(key=lambda f: f.path)

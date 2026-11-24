@@ -65,10 +65,19 @@ def redact(value: str) -> str:
     return value[:4] + "*" * 8
 
 
-def _excerpt(line: str, match: re.Match, rule: Rule) -> str:
-    if rule.secret_group is not None:
-        start, end = match.span(rule.secret_group)
-        line = line[:start] + redact(match.group(rule.secret_group)) + line[end:]
+def _excerpt(line: str) -> str:
+    """The line with every value any secret rule matches redacted.
+
+    Redaction is independent of which rule produced the finding, so a secret
+    cannot leak through the excerpt of an unrelated finding on the same line.
+    """
+    for rule in RULES:
+        if rule.secret_group is None:
+            continue
+        group = rule.secret_group
+        line = rule.pattern.sub(
+            lambda m: m.group(0).replace(m.group(group), redact(m.group(group))), line
+        )
     return line.strip()[:120]
 
 
@@ -97,7 +106,7 @@ def scan_risks(files) -> dict:
                 findings.append(
                     {"rule": rule.id, "severity": rule.severity,
                      "description": rule.description, "path": info.path,
-                     "line": number, "excerpt": _excerpt(line, match, rule)}
+                     "line": number, "excerpt": _excerpt(line)}
                 )
     findings.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["path"], f["line"], f["rule"]))
     by_severity = {s: sum(1 for f in findings if f["severity"] == s) for s in SEVERITIES}

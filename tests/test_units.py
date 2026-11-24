@@ -1,8 +1,13 @@
 """Unit checks for the individual analyzers, built on small temporary repos."""
 
+import os
+import subprocess
+import sys
+
 from codebase_scanner.deadfiles import find_dead_files, js_imports, python_imports
 from codebase_scanner.manifests import (
     parse_go_mod,
+    parse_package_json,
     parse_pyproject,
     parse_requirements,
     summarize_manifests,
@@ -145,3 +150,53 @@ def test_empty_directory_produces_an_empty_report(tmp_path):
     assert report["totals"]["files"] == 0
     assert report["todos"]["per_kloc"] == 0.0
     assert report["dead_files"] == [] and report["risks"]["total"] == 0
+
+
+def test_secret_is_redacted_in_every_finding_on_the_line(tmp_path):
+    make_repo(tmp_path, {
+        "client.py": (
+            'r = requests.get(u, verify=False, password="s3cretvalue99")\n'
+            'KEYS = {"token": "abcdefgh1234", "api_key": "zyxwvuts9876"}\n'
+        ),
+    })
+    findings = scan_risks(walk(tmp_path))["findings"]
+    assert {(f["rule"], f["line"]) for f in findings} == {
+        ("hardcoded-credential", 1), ("tls-verify-disabled", 1), ("hardcoded-credential", 2),
+    }
+    excerpts = " ".join(f["excerpt"] for f in findings)
+    for secret in ("s3cretvalue99", "abcdefgh1234", "zyxwvuts9876"):
+        assert secret not in excerpts
+    assert 'password="s3cr********"' in excerpts
+
+
+def test_byte_order_mark_does_not_hide_imports(tmp_path):
+    make_repo(tmp_path, {
+        "run.py": b"\xef\xbb\xbfimport pkg.helper\nif __name__ == '__main__':\n    pass\n",
+        "pkg/__init__.py": "",
+        "pkg/helper.py": "VALUE = 1\n",
+    })
+    files = walk(tmp_path)
+    assert next(f for f in files if f.path == "run.py").text.startswith("import")
+    assert find_dead_files(files) == []
+
+
+def test_only_exact_versions_count_as_pinned():
+    npm = parse_package_json(
+        '{"dependencies": {"a": "1.x", "b": "1.2.3 - 2.0.0", "c": "1.2.3", "d": "2",'
+        ' "e": "^1.2.3", "f": "=1.2.3-beta.1", "g": "latest"}}'
+    )
+    assert {d["name"] for d in npm if d["pinned"]} == {"c", "f"}
+    pip = parse_requirements("a==1.*\nb==1.2.3\nc>=1.0\nd==1.2,<2\n")
+    assert {d["name"] for d in pip if d["pinned"]} == {"b"}
+
+
+def test_cli_prints_utf8_when_the_console_code_page_cannot(tmp_path):
+    make_repo(tmp_path, {"app.py": "eval(x)  # café 日本\n"})
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONPATH": root}
+    done = subprocess.run(
+        [sys.executable, "-m", "codebase_scanner", str(tmp_path)],
+        capture_output=True, env=env, cwd=root,
+    )
+    assert done.returncode == 0, done.stderr.decode("utf-8", "replace")
+    assert "café 日本" in done.stdout.decode("utf-8")

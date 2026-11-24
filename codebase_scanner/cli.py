@@ -58,6 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         (out_dir / "report.md").write_text(markdown, encoding="utf-8", newline="\n")
         (out_dir / "report.json").write_text(as_json, encoding="utf-8", newline="\n")
     if not args.quiet:
+        # Reports quote source lines, which can hold characters a legacy console
+        # code page (cp1252 on Windows) cannot encode. Always emit UTF-8.
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
         sys.stdout.write(as_json if args.format == "json" else markdown)
 
     if args.fail_on != "none":

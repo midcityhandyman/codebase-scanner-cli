@@ -8,6 +8,7 @@ import re
 import tomllib
 
 _REQ_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])?\s*(.*)$")
+_NPM_EXACT_RE = re.compile(r"^=?v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?$")
 _GO_REQ_RE = re.compile(r"^\s*(?:require\s+)?([\w./~-]+\.[\w./~-]+)\s+(v[\w.+-]+)")
 
 
@@ -23,7 +24,9 @@ def _parse_requirement(line: str, scope: str) -> dict | None:
     if not match:
         return None
     spec = match.group(2).strip()
-    return _dep(match.group(1), spec, scope, spec.startswith("=="))
+    # "==1.*" and "==1.2,<2" style specs are ranges, not exact pins.
+    pinned = spec.startswith("==") and "*" not in spec and "," not in spec
+    return _dep(match.group(1), spec, scope, pinned)
 
 
 def parse_requirements(text: str) -> list[dict]:
@@ -45,7 +48,7 @@ def parse_package_json(text: str) -> list[dict]:
     for key, scope in (("dependencies", "runtime"), ("devDependencies", "dev")):
         for name, spec in sorted((data.get(key) or {}).items()):
             spec = str(spec)
-            deps.append(_dep(name, spec, scope, spec[:1].isdigit()))
+            deps.append(_dep(name, spec, scope, bool(_NPM_EXACT_RE.match(spec.strip()))))
     return deps
 
 
